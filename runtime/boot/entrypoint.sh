@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
-# ES_HOME=...
-ES_PATH_CONF=/config
+ELASTIC_PASSWORD="${ELASTIC_PASSWORD:-}"
 
 # Files created by Elasticsearch should always be group writable too
 umask 0002
@@ -15,7 +14,7 @@ umask 0002
 #
 # see https://www.elastic.co/guide/en/elasticsearch/reference/current/settings.html#_setting_default_settings
 
-declare -a es_opts
+es_opts=()
 
 while IFS='=' read -r envvar_key envvar_value
 do
@@ -29,6 +28,13 @@ do
     fi
   fi
 done < <(env)
+
+# ES_HOME=...
+export ES_PATH_CONF=/config
+export ES_PATH_DATA=/data/data
+export ES_PATH_LOGS=/data/logs
+mkdir -p /data/data
+mkdir -p /data/logs
 
 # The virtual file /proc/self/cgroup should list the current cgroup
 # membership. For each hierarchy, you can follow the cgroup path from
@@ -58,6 +64,5 @@ if [[ -f bin/elasticsearch-users ]]; then
     fi
   fi
 fi
-
 
 exec elasticsearch "${es_opts[@]}"
