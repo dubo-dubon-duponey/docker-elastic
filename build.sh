@@ -6,5 +6,5 @@ export DESCRIPTION="A dubo image for Elastic"
 export IMAGE_NAME="elastic"
 export PLATFORMS="linux/amd64"
 
-# shellcheck source=vars.sh
+# shellcheck source=/dev/null
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$PWD}")" 2>/dev/null 1>&2 && pwd)/helpers.sh"

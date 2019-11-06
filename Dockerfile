@@ -23,7 +23,8 @@ ENV           ELS_AMD64_SHA512=bfd96df61f8b745dce2e665dfe326f021ffdf080853aa02ca
 
 WORKDIR       /build/elastic
 
-RUN           set -Eeu; \
+# hadolint ignore=DL4006
+RUN           set -eu; \
               curl -k -fsSL -o kbn.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ELS_VERSION}-linux-x86_64.tar.gz"; \
               printf "%s *kbn.tgz" "$ELS_AMD64_SHA512" | sha512sum -c -; \
               tar --strip-components=1 -zxf kbn.tgz; \
