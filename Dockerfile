@@ -1,7 +1,10 @@
 #######################
 # Extra builder for healthchecker
 #######################
-FROM          --platform=$BUILDPLATFORM dubodubonduponey/base:builder                                                   AS builder-healthcheck
+ARG           BUILDER_BASE=dubodubonduponey/base:builder
+ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
+# hadolint ignore=DL3006
+FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
 
 ARG           HEALTH_VER=51ebf8ca3d255e0c846307bf72740f731e6210c3
 
@@ -14,7 +17,8 @@ RUN           arch="${TARGETPLATFORM#*/}"; \
 #######################
 # Building image
 #######################
-FROM          dubodubonduponey/base:builder                                                                             AS builder
+# hadolint ignore=DL3006
+FROM          $BUILDER_BASE                                                                                             AS builder
 
 ENV           ELS_VERSION=7.5.0
 ENV           ELS_AMD64_SHA512=4ac4b2d504ed134c2a68ae1ed610c8c224446702fd83371bfd32242a5460751d48298275c46df609b6239006ca1f52a63cb52600957245bbd89741525ac89a53
@@ -24,7 +28,7 @@ WORKDIR       /dist/boot
 # hadolint ignore=DL4006
 RUN           set -eu; \
               curl -k -fsSL -o archive.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ELS_VERSION}-linux-x86_64.tar.gz"; \
-              printf "Downloaded shasum: %s\n" $(sha512sum archive.tgz); \
+              printf "Downloaded shasum: %s\n" "$(sha512sum archive.tgz)"; \
               printf "%s *archive.tgz" "$ELS_AMD64_SHA512" | sha512sum -c -; \
               tar --strip-components=1 -zxf archive.tgz; \
               rm archive.tgz; \
@@ -40,7 +44,8 @@ RUN           chmod 555 /dist/boot/bin/*
 #######################
 # Running image
 #######################
-FROM          dubodubonduponey/base:runtime
+# hadolint ignore=DL3006
+FROM          $RUNTIME_BASE
 
 COPY          --from=builder --chown=$BUILD_UID:root /dist .
 
