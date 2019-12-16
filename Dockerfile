@@ -9,39 +9,40 @@ WORKDIR       $GOPATH/src/github.com/dubo-dubon-duponey/healthcheckers
 RUN           git clone git://github.com/dubo-dubon-duponey/healthcheckers .
 RUN           git checkout $HEALTH_VER
 RUN           arch="${TARGETPLATFORM#*/}"; \
-              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" -o /dist/bin/http-health ./cmd/http
-
-RUN           chmod 555 /dist/bin/*
+              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" -o /dist/boot/bin/http-health ./cmd/http
 
 #######################
 # Building image
 #######################
 FROM          dubodubonduponey/base:builder                                                                             AS builder
 
-ENV           ELS_VERSION=7.4.0
-ENV           ELS_AMD64_SHA512=bfd96df61f8b745dce2e665dfe326f021ffdf080853aa02ca7d4bc2f5e40b949fe566fe6aacc628580b8ca421866b86eeb2f694b14b08f47ebb9e1350d18ecc3
+ENV           ELS_VERSION=7.5.0
+ENV           ELS_AMD64_SHA512=4ac4b2d504ed134c2a68ae1ed610c8c224446702fd83371bfd32242a5460751d48298275c46df609b6239006ca1f52a63cb52600957245bbd89741525ac89a53
 
-WORKDIR       /build/elastic
+WORKDIR       /dist/boot
 
 # hadolint ignore=DL4006
 RUN           set -eu; \
-              curl -k -fsSL -o kbn.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ELS_VERSION}-linux-x86_64.tar.gz"; \
-              printf "%s *kbn.tgz" "$ELS_AMD64_SHA512" | sha512sum -c -; \
-              tar --strip-components=1 -zxf kbn.tgz; \
-              rm kbn.tgz; \
+              curl -k -fsSL -o archive.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ELS_VERSION}-linux-x86_64.tar.gz"; \
+              printf "Downloaded shasum: %s\n" $(sha512sum archive.tgz); \
+              printf "%s *archive.tgz" "$ELS_AMD64_SHA512" | sha512sum -c -; \
+              tar --strip-components=1 -zxf archive.tgz; \
+              rm archive.tgz; \
               mv config ../; \
               rm ../config/log4j2.properties
 
 RUN           grep ES_DISTRIBUTION_TYPE=tar bin/elasticsearch-env     && sed -ie 's/ES_DISTRIBUTION_TYPE=tar/ES_DISTRIBUTION_TYPE=docker/' bin/elasticsearch-env
+
+COPY          --from=builder-healthcheck /dist/boot/bin           /dist/boot/bin
+
+RUN           chmod 555 /dist/boot/bin/*
 
 #######################
 # Running image
 #######################
 FROM          dubodubonduponey/base:runtime
 
-COPY          --from=builder --chown=$BUILD_UID:root /build/elastic  /boot
-COPY          --from=builder --chown=$BUILD_UID:root /build/config   /config
-COPY          --from=builder-healthcheck  /dist/bin/http-health   ./bin/
+COPY          --from=builder --chown=$BUILD_UID:root /dist .
 
 # Set some Kibana configuration defaults.
 ENV           cluster.name "docker-cluster"
@@ -51,9 +52,9 @@ ENV           ELASTIC_CONTAINER true
 
 ENV           HEALTHCHECK_URL="http://127.0.0.1:9200"
 
+# Default volumes for data and certs, since these are expected to be writable
 VOLUME        /data
 
-# Default volumes for data and certs, since these are expected to be writable
 EXPOSE        9200
 EXPOSE        9300
 

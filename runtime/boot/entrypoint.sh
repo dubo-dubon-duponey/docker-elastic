@@ -48,7 +48,7 @@ mkdir -p /data/logs
 # es.cgroups.hierarchy.override. Therefore, we set this value here so
 # that cgroup statistics are available for the container this process
 # will run in.
-export ES_JAVA_OPTS="-Des.cgroups.hierarchy.override=/ $ES_JAVA_OPTS"
+export ES_JAVA_OPTS="-Des.cgroups.hierarchy.override=/ ${ES_JAVA_OPTS:-}"
 
 if [[ -f bin/elasticsearch-users ]]; then
   # Check for the ELASTIC_PASSWORD environment variable to set the
