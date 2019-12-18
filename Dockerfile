@@ -37,6 +37,11 @@ RUN           set -eu; \
 
 RUN           grep ES_DISTRIBUTION_TYPE=tar bin/elasticsearch-env     && sed -ie 's/ES_DISTRIBUTION_TYPE=tar/ES_DISTRIBUTION_TYPE=docker/' bin/elasticsearch-env
 
+# XXX kind of dirty, given ${ES_PATH_DATA} is only defined in the entrypoint script
+RUN           sed -i'' -e 's|-XX:HeapDumpPath=data|-XX:HeapDumpPath=/tmp/|' ../config/jvm.options
+RUN           sed -i'' -e 's|-XX:ErrorFile=logs/hs_err_pid%p.log|-XX:ErrorFile=/tmp/hs_err_pid%p.log|' ../config/jvm.options
+RUN           sed -i'' -e 's|9-:-Xlog:gc\*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m|9-:-Xlog:gc*,gc+age=trace,safepoint:file=/tmp/gc.log:utctime,pid,tags:filecount=32,filesize=64m|' ../config/jvm.options
+
 COPY          --from=builder-healthcheck /dist/boot/bin           /dist/boot/bin
 
 RUN           chmod 555 /dist/boot/bin/*
@@ -57,8 +62,10 @@ ENV           ELASTIC_CONTAINER true
 
 ENV           HEALTHCHECK_URL="http://127.0.0.1:9200"
 
-# Default volumes for data and certs, since these are expected to be writable
+# Default volumes for data and tmp, since these are expected to be writable
+VOLUME        /config
 VOLUME        /data
+VOLUME        /tmp
 
 EXPOSE        9200
 EXPOSE        9300

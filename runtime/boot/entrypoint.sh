@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
+# Ensure the folders are writable
+[ -w "/data" ] || {
+  >&2 printf "/data is not writable. Check your mount permissions.\n"
+  exit 1
+}
+
+[ -w "/tmp" ] || {
+  >&2 printf "/tmp is not writable. Check your mount permissions.\n"
+  exit 1
+}
+
+[ -w "/config" ] || {
+  >&2 printf "/config is not writable. Check your mount permissions.\n"
+  exit 1
+}
+
 ELASTIC_PASSWORD="${ELASTIC_PASSWORD:-}"
 
 # Files created by Elasticsearch should always be group writable too
@@ -14,7 +30,17 @@ umask 0002
 #
 # see https://www.elastic.co/guide/en/elasticsearch/reference/current/settings.html#_setting_default_settings
 
-es_opts=()
+# ES_HOME=...
+export ES_HOME=/data
+export ES_PATH_CONF=/config
+# XXX HATE YOU FREAKIN PIECE OF S
+export ES_PATH_DATA=/data/data
+export ES_PATH_LOGS=/data/logs
+
+es_opts+=("-Epath.data=/data/data")
+es_opts+=("-Epath.logs=/data/logs")
+
+es_opts+=("-Escript.max_compilations_rate=2048/1m")
 
 while IFS='=' read -r envvar_key envvar_value
 do
@@ -29,10 +55,6 @@ do
   fi
 done < <(env)
 
-# ES_HOME=...
-export ES_PATH_CONF=/config
-export ES_PATH_DATA=/data/data
-export ES_PATH_LOGS=/data/logs
 mkdir -p /data/data
 mkdir -p /data/logs
 
@@ -48,6 +70,7 @@ mkdir -p /data/logs
 # es.cgroups.hierarchy.override. Therefore, we set this value here so
 # that cgroup statistics are available for the container this process
 # will run in.
+# -Djava.io.tmpdir=/tmp
 export ES_JAVA_OPTS="-Des.cgroups.hierarchy.override=/ ${ES_JAVA_OPTS:-}"
 
 if [[ -f bin/elasticsearch-users ]]; then
