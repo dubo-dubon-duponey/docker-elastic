@@ -13,7 +13,7 @@ WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
 RUN           git checkout $GIT_VERSION
 RUN           arch="${TARGETPLATFORM#*/}"; \
-              env GOOS=linux GOARCH="${arch%/*}" go build -mod=vendor -v -ldflags "-s -w" -o /dist/boot/bin/http-health ./cmd/http
+              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" -o /dist/boot/bin/http-health ./cmd/http
 
 #######################
 # Building image
@@ -23,6 +23,10 @@ FROM          $BUILDER_BASE                                                     
 
 ENV           ELS_VERSION=7.5.0
 ENV           ELS_AMD64_SHA512=4ac4b2d504ed134c2a68ae1ed610c8c224446702fd83371bfd32242a5460751d48298275c46df609b6239006ca1f52a63cb52600957245bbd89741525ac89a53
+
+RUN           apt-get update -qq \
+              && apt-get install -qq --no-install-recommends \
+                curl=7.64.0-4+deb10u1
 
 WORKDIR       /dist/boot
 
