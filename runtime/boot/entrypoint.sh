@@ -42,18 +42,19 @@ es_opts+=("-Epath.logs=/data/logs")
 
 es_opts+=("-Escript.max_compilations_rate=2048/1m")
 
-while IFS='=' read -r envvar_key envvar_value
-do
+# XXX seems like this is now done automatically by elastic and setting these will fail with duplicate entries
+#while IFS='=' read -r envvar_key envvar_value
+#do
   # Elasticsearch settings need to have at least two dot separated lowercase
   # words, e.g. `cluster.name`, except for `processors` which we handle
   # specially
-  if [[ "$envvar_key" =~ ^[a-z0-9_]+\.[a-z0-9_]+ || "$envvar_key" == "processors" ]]; then
-    if [[ ! -z $envvar_value ]]; then
-      es_opt="-E${envvar_key}=${envvar_value}"
-      es_opts+=("${es_opt}")
-    fi
-  fi
-done < <(env)
+#  if [[ "$envvar_key" =~ ^[a-z0-9_]+\.[a-z0-9_]+ || "$envvar_key" == "processors" ]]; then
+#    if [[ ! -z $envvar_value ]]; then
+#      es_opt="-E${envvar_key}=${envvar_value}"
+#      es_opts+=("${es_opt}")
+#    fi
+#  fi
+#done < <(env)
 
 mkdir -p /data/data
 mkdir -p /data/logs
