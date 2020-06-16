@@ -31,7 +31,7 @@ docker run -d \
     --net bridge \
     --cap-drop ALL \
     --read-only \
-    dubodubonduponey/elastic:v1
+    dubodubonduponey/elastic
 ```
 
 ## Notes
