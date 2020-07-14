@@ -1,18 +1,21 @@
+ARG           BUILDER_BASE=dubodubonduponey/base:builder
+ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
+
 #######################
 # Extra builder for healthchecker
 #######################
-ARG           BUILDER_BASE=dubodubonduponey/base:builder
-ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
 # hadolint ignore=DL3006
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
 
-ARG           HEALTH_VER=51ebf8ca3d255e0c846307bf72740f731e6210c3
+ARG           GIT_REPO=github.com/dubo-dubon-duponey/healthcheckers
+ARG           GIT_VERSION=51ebf8ca3d255e0c846307bf72740f731e6210c3
 
-WORKDIR       $GOPATH/src/github.com/dubo-dubon-duponey/healthcheckers
-RUN           git clone git://github.com/dubo-dubon-duponey/healthcheckers .
-RUN           git checkout $HEALTH_VER
+WORKDIR       $GOPATH/src/$GIT_REPO
+RUN           git clone git://$GIT_REPO .
+RUN           git checkout $GIT_VERSION
 RUN           arch="${TARGETPLATFORM#*/}"; \
-              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" -o /dist/boot/bin/http-health ./cmd/http
+              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" \
+                -o /dist/boot/bin/http-health ./cmd/http
 
 #######################
 # Building image
@@ -20,8 +23,16 @@ RUN           arch="${TARGETPLATFORM#*/}"; \
 # hadolint ignore=DL3006
 FROM          $BUILDER_BASE                                                                                             AS builder
 
-ENV           ELS_VERSION=7.5.0
-ENV           ELS_AMD64_SHA512=4ac4b2d504ed134c2a68ae1ed610c8c224446702fd83371bfd32242a5460751d48298275c46df609b6239006ca1f52a63cb52600957245bbd89741525ac89a53
+#ENV           ELS_VERSION=7.5.0
+#ENV           ELS_AMD64_SHA512=4ac4b2d504ed134c2a68ae1ed610c8c224446702fd83371bfd32242a5460751d48298275c46df609b6239006ca1f52a63cb52600957245bbd89741525ac89a53
+#ENV           ELS_VERSION=7.5.2
+#ENV           ELS_AMD64_SHA512=a9dfc062f010a73a8774745730465e768d58cf418579f0aef0b0032e6be49285a9077be3d08b729679d1895b97ced3a1b061b075c167c15e6faf08267a179e52
+ENV           ELS_VERSION=7.7.1
+ENV           ELS_AMD64_SHA512=f228f0a8bd60fe10d5959d01934008f205b5567a392ae73602549dcefeedb0918a4607b05c59d6168b232cd0a5225ca461ef4bb0f47097c96ba27df7c12fed97
+
+RUN           apt-get update -qq \
+              && apt-get install -qq --no-install-recommends \
+                curl=7.64.0-4+deb10u1
 
 WORKDIR       /dist/boot
 
