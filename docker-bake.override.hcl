@@ -1,7 +1,3 @@
-variable "REGISTRY" {
-  default = "docker.io"
-}
-
 target "default" {
   inherits = ["shared"]
   args = {
@@ -9,7 +5,7 @@ target "default" {
     BUILD_DESCRIPTION = "A dubo image for Elastic"
   }
   tags = [
-    "${REGISTRY}/dubodubonduponey/elastic",
+    "dubodubonduponey/elastic",
   ]
   platforms = ["linux/amd64"]
 }
