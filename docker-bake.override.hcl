@@ -7,5 +7,8 @@ target "default" {
   tags = [
     "dubodubonduponey/elastic",
   ]
-  platforms = ["linux/amd64"]
+  platforms = [
+    "linux/amd64",
+    "linux/arm64",
+  ]
 }
