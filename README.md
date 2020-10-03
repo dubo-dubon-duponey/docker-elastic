@@ -36,7 +36,7 @@ docker run -d \
 
 ## Notes
 
-### Prometheus
+### Prometheus
 
 Not applicable.
 
