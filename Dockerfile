@@ -32,7 +32,7 @@ FROM          $BUILDER_BASE                                                     
 #ENV           ELS_VERSION=7.8.1
 #ENV           ELS_AMD64_SHA512=11c5b8b9e3727bba33141771e12dfb29687e01508c06f087691d284a5de6c543247394a102778b8afb25cab3530340608f2a797524ff1439386241ef4e4d0978
 ENV           ELS_VERSION=7.10.0
-ENV           ELS_AMD64_SHA512=11c5b8b9e3727bba33141771e12dfb29687e01508c06f087691d284a5de6c543247394a102778b8afb25cab3530340608f2a797524ff1439386241ef4e4d0978
+ENV           ELS_AMD64_SHA512=5c159bdf0d6e140a2bee5fbb1c379fbe23b0ea39b01d715564f02e4674b444b065a8abfda86440229c4b70defa175722c479b60009b7eef7b3de66e2339aacea
 
 RUN           apt-get update -qq \
               && apt-get install -qq --no-install-recommends \
