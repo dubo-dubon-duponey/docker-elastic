@@ -4,7 +4,7 @@ ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
 #######################
 # Extra builder for healthchecker
 #######################
-# hadolint ignore=DL3006
+# hadolint ignore=DL3006,DL3029
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/healthcheckers
@@ -29,7 +29,9 @@ FROM          $BUILDER_BASE                                                     
 #ENV           ELS_AMD64_SHA512=a9dfc062f010a73a8774745730465e768d58cf418579f0aef0b0032e6be49285a9077be3d08b729679d1895b97ced3a1b061b075c167c15e6faf08267a179e52
 #ENV           ELS_VERSION=7.7.1
 #ENV           ELS_AMD64_SHA512=f228f0a8bd60fe10d5959d01934008f205b5567a392ae73602549dcefeedb0918a4607b05c59d6168b232cd0a5225ca461ef4bb0f47097c96ba27df7c12fed97
-ENV           ELS_VERSION=7.8.1
+#ENV           ELS_VERSION=7.8.1
+#ENV           ELS_AMD64_SHA512=11c5b8b9e3727bba33141771e12dfb29687e01508c06f087691d284a5de6c543247394a102778b8afb25cab3530340608f2a797524ff1439386241ef4e4d0978
+ENV           ELS_VERSION=7.10.0
 ENV           ELS_AMD64_SHA512=11c5b8b9e3727bba33141771e12dfb29687e01508c06f087691d284a5de6c543247394a102778b8afb25cab3530340608f2a797524ff1439386241ef4e4d0978
 
 RUN           apt-get update -qq \
