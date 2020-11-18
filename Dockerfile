@@ -4,7 +4,7 @@ ARG           RUNTIME_BASE=dubodubonduponey/base:runtime
 #######################
 # Extra builder for healthchecker
 #######################
-# hadolint ignore=DL3006
+# hadolint ignore=DL3006,DL3029
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
 
 ARG           GIT_REPO=github.com/dubo-dubon-duponey/healthcheckers
@@ -13,8 +13,8 @@ ARG           GIT_VERSION=51ebf8ca3d255e0c846307bf72740f731e6210c3
 WORKDIR       $GOPATH/src/$GIT_REPO
 RUN           git clone git://$GIT_REPO .
 RUN           git checkout $GIT_VERSION
-RUN           arch="${TARGETPLATFORM#*/}"; \
-              env GOOS=linux GOARCH="${arch%/*}" go build -v -ldflags "-s -w" \
+# hadolint ignore=DL4006
+RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v -ldflags "-s -w" \
                 -o /dist/boot/bin/http-health ./cmd/http
 
 #######################
@@ -27,8 +27,12 @@ FROM          $BUILDER_BASE                                                     
 #ENV           ELS_AMD64_SHA512=4ac4b2d504ed134c2a68ae1ed610c8c224446702fd83371bfd32242a5460751d48298275c46df609b6239006ca1f52a63cb52600957245bbd89741525ac89a53
 #ENV           ELS_VERSION=7.5.2
 #ENV           ELS_AMD64_SHA512=a9dfc062f010a73a8774745730465e768d58cf418579f0aef0b0032e6be49285a9077be3d08b729679d1895b97ced3a1b061b075c167c15e6faf08267a179e52
-ENV           ELS_VERSION=7.7.1
-ENV           ELS_AMD64_SHA512=f228f0a8bd60fe10d5959d01934008f205b5567a392ae73602549dcefeedb0918a4607b05c59d6168b232cd0a5225ca461ef4bb0f47097c96ba27df7c12fed97
+#ENV           ELS_VERSION=7.7.1
+#ENV           ELS_AMD64_SHA512=f228f0a8bd60fe10d5959d01934008f205b5567a392ae73602549dcefeedb0918a4607b05c59d6168b232cd0a5225ca461ef4bb0f47097c96ba27df7c12fed97
+#ENV           ELS_VERSION=7.8.1
+#ENV           ELS_AMD64_SHA512=11c5b8b9e3727bba33141771e12dfb29687e01508c06f087691d284a5de6c543247394a102778b8afb25cab3530340608f2a797524ff1439386241ef4e4d0978
+ENV           ELS_VERSION=7.10.0
+ENV           ELS_AMD64_SHA512=5c159bdf0d6e140a2bee5fbb1c379fbe23b0ea39b01d715564f02e4674b444b065a8abfda86440229c4b70defa175722c479b60009b7eef7b3de66e2339aacea
 
 RUN           apt-get update -qq \
               && apt-get install -qq --no-install-recommends \
