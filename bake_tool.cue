@@ -9,6 +9,7 @@ command: {
 
     platforms: [
       AMD64,
+      ARM64,
     ]
   }
 }

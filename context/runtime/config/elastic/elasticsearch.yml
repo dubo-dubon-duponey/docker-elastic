@@ -1,0 +1,8 @@
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/settings.html
+
+# NOTE: can use ${FOO} for env interpolation
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-network.html
+network.host: 127.0.0.1
+http.port: 42042
+# XXX disabled for now since we are running a single node and this apparently cause an error
+#cluster.name: "docker-cluster"
