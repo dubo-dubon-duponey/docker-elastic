@@ -2,18 +2,17 @@
 set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
 [ -w "/certs" ] || {
-  >&2 printf "/certs is not writable. Check your mount permissions.\n"
-  exit 1
-}
-
-# Ensure the folders are writable
-[ -w "/data" ] || {
-  >&2 printf "/data is not writable. Check your mount permissions.\n"
+  printf >&2 "/certs is not writable. Check your mount permissions.\n"
   exit 1
 }
 
 [ -w "/tmp" ] || {
-  >&2 printf "/tmp is not writable. Check your mount permissions.\n"
+  printf >&2 "/tmp is not writable. Check your mount permissions.\n"
+  exit 1
+}
+
+[ -w "/data" ] || {
+  printf >&2 "/data is not writable. Check your mount permissions.\n"
   exit 1
 }
 
@@ -22,14 +21,18 @@ case "${1:-}" in
   # Short hand helper to generate password hash
   "hash")
     shift
-    >&2 echo "Going to generate a password hash with salt: $SALT"
-    caddy hash-password -algorithm bcrypt -salt "$SALT" "$@"
+    printf >&2 "Generating password hash\n"
+    caddy hash-password -algorithm bcrypt "$@"
     exit
   ;;
   # Helper to get the ca.crt out (once initialized)
   "cert")
+    if [ "$TLS" == "" ]; then
+      echo "Your container is not configured for TLS termination - there is no local CA in that case."
+      exit 1
+    fi
     if [ "$TLS" != internal ]; then
-      echo "Your server is not configured in self-signing mode. This command is a no-op in that case."
+      echo "Your container uses letsencrypt - there is no local CA in that case."
       exit 1
     fi
     if [ ! -e "/certs/pki/authorities/local/root.crt" ]; then
@@ -41,19 +44,22 @@ case "${1:-}" in
   ;;
 esac
 
-# Given how the caddy conf is set right now, we cannot have these be not set, so, stuff in randomized shit in there
-readonly SALT="${SALT:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64 | base64)"}"
-readonly USERNAME="${USERNAME:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)"}"
-readonly PASSWORD="${PASSWORD:-$(caddy hash-password -algorithm bcrypt -salt "$SALT" -plaintext "$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)")}"
-
-# Bonjour the container if asked to
+# Bonjour the container if asked to. While the PORT is no guaranteed to be mapped on the host in bridge, this does not matter since mDNS will not work at all in bridge mode.
 if [ "${MDNS_ENABLED:-}" == true ]; then
   goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
 fi
 
+# Given how the caddy conf is set right now, we cannot have these be not set, so, stuff in randomized shit in there in case there is nothing
+readonly USERNAME="${USERNAME:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)"}"
+readonly PASSWORD="${PASSWORD:-$(caddy hash-password -algorithm bcrypt -plaintext "$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)")}"
 
-# Files created by Elasticsearch should always be group writable too
-umask 0002
+# If we want TLS and authentication, start caddy in the background
+if [ "$TLS" ]; then
+  HOME=/tmp/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile &
+fi
+
+# This is in the official dockerfile, so...
+export ELASTIC_CONTAINER=true
 
 # Parse Docker env vars to customize Elasticsearch
 #
@@ -62,9 +68,6 @@ umask 0002
 # will cause Elasticsearch to be invoked with -Ecluster.name=testcluster
 #
 # see https://www.elastic.co/guide/en/elasticsearch/reference/current/settings.html#_setting_default_settings
-
-# This is in the official dockerfile, so...
-export ELASTIC_CONTAINER=true
 
 export ES_HOME=/data
 # XXX ARRRRR ELASTIC - mutable config???? WHY?
@@ -80,25 +83,9 @@ rm -Rf "$ES_PATH_CONF"
 cp -R /config/elastic "$ES_PATH_CONF"
 chmod u+w "$ES_PATH_CONF"
 
-# es_opts+=("-Epath.conf=/data/xxx-elastic")
-#ES_JAVA_OPTS="-Des.insecure.allow.root=true"
 es_opts+=("-Epath.data=/data/data")
 es_opts+=("-Epath.logs=/tmp/logs")
 # es_opts+=("-Escript.max_compilations_rate=2048/1m")
-
-# XXX seems like this is now done automatically by elastic and setting these will fail with duplicate entries
-#while IFS='=' read -r envvar_key envvar_value
-#do
-  # Elasticsearch settings need to have at least two dot separated lowercase
-  # words, e.g. `cluster.name`, except for `processors` which we handle
-  # specially
-#  if [[ "$envvar_key" =~ ^[a-z0-9_]+\.[a-z0-9_]+ || "$envvar_key" == "processors" ]]; then
-#    if [[ ! -z $envvar_value ]]; then
-#      es_opt="-E${envvar_key}=${envvar_value}"
-#      es_opts+=("${es_opt}")
-#    fi
-#  fi
-#done < <(env)
 
 # The virtual file /proc/self/cgroup should list the current cgroup
 # membership. For each hierarchy, you can follow the cgroup path from
@@ -115,7 +102,4 @@ es_opts+=("-Epath.logs=/tmp/logs")
 # -Djava.io.tmpdir=/tmp
 export ES_JAVA_OPTS="-Djava.io.tmpdir=/tmp/java -Des.cgroups.hierarchy.override=/ ${ES_JAVA_OPTS:-}"
 
-elasticsearch "${es_opts[@]}" &
-
-# Trick caddy into using the proper location for shit... still, /tmp keeps on being used (possibly by the pki lib?)
-HOME=/data/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile "$@"
+elasticsearch "${es_opts[@]}" "$@"

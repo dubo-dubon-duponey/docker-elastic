@@ -66,9 +66,9 @@ RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's
 FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-main
 
 # Note that this is tied to x86_64 and not a proper multi-arch image
-ENV           ELS_VERSION=7.11.1
-ENV           ELS_X86_64_SHA512=49db18ecb8c67dd904106165f599d5757f5ce3cdbe5835e8d4babf85f5274368b45fb6bbaf23350107305904ea1823d929444858cf3df686df3c52e8506ce569
-ENV           ELS_AARCH64_SHA512=72aa6346ab303484dd620d23dca8f60acedf775d778ed2ef5326672fc2ece8b55124bef02e0749813aa9fc34bdac4af6c7e9a54a6ace50a41ac30fae5fdc38e1
+ENV           VERSION=7.11.1
+ENV           AMD64_SHA512=49db18ecb8c67dd904106165f599d5757f5ce3cdbe5835e8d4babf85f5274368b45fb6bbaf23350107305904ea1823d929444858cf3df686df3c52e8506ce569
+ENV           AARCH64_SHA512=72aa6346ab303484dd620d23dca8f60acedf775d778ed2ef5326672fc2ece8b55124bef02e0749813aa9fc34bdac4af6c7e9a54a6ace50a41ac30fae5fdc38e1
 
 RUN           apt-get update -qq \
               && apt-get install -qq --no-install-recommends \
@@ -79,17 +79,17 @@ WORKDIR       /dist/boot
 # hadolint ignore=DL4006
 RUN           set -eu; \
               case "$TARGETPLATFORM" in \
-                "linux/amd64")    arch=x86_64;      checksum=$ELS_X86_64_SHA512;      ;; \
-                "linux/arm64")    arch=aarch64;     checksum=$ELS_AARCH64_SHA512;     ;; \
+                "linux/amd64")    arch=x86_64;      checksum=$AMD64_SHA512;      ;; \
+                "linux/arm64")    arch=aarch64;     checksum=$AARCH64_SHA512;     ;; \
               esac; \
-              curl --proto '=https' --tlsv1.2 -sSfL -o archive.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${ELS_VERSION}-linux-${arch}.tar.gz"; \
+              curl --proto '=https' --tlsv1.2 -sSfL -o archive.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${VERSION}-linux-${arch}.tar.gz"; \
               printf "Downloaded shasum: %s\n" "$(sha512sum archive.tgz)"; \
               printf "%s *archive.tgz" "$checksum" | sha512sum -c -; \
               tar --strip-components=1 -zxf archive.tgz; \
               rm archive.tgz; \
               mv config ../; \
-              rm ../config/elasticsearch.yml
-#              rm ../config/log4j2.properties; \
+              rm ../config/elasticsearch.yml; \
+              rm ../config/log4j2.properties
 
 RUN           grep ES_DISTRIBUTION_TYPE=tar bin/elasticsearch-env     && sed -ie 's/ES_DISTRIBUTION_TYPE=tar/ES_DISTRIBUTION_TYPE=docker/' bin/elasticsearch-env
 
@@ -97,7 +97,6 @@ RUN           grep ES_DISTRIBUTION_TYPE=tar bin/elasticsearch-env     && sed -ie
 RUN           sed -i'' -e 's|-XX:HeapDumpPath=data|-XX:HeapDumpPath=/tmp/|' ../config/jvm.options
 RUN           sed -i'' -e 's|-XX:ErrorFile=logs/hs_err_pid%p.log|-XX:ErrorFile=/tmp/hs_err_pid%p.log|' ../config/jvm.options
 RUN           sed -i'' -e 's|9-:-Xlog:gc\*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m|9-:-Xlog:gc*,gc+age=trace,safepoint:file=/tmp/gc.log:utctime,pid,tags:filecount=32,filesize=64m|' ../config/jvm.options
-
 
 #######################
 # Builder assembly
@@ -126,25 +125,25 @@ COPY          --from=builder --chown=$BUILD_UID:root /dist .
 # Elastic: bring in the config as well
 COPY          --from=builder-main --chown=$BUILD_UID:root /dist/config /config/elastic
 
-RUN           chmod u+w /config/elastic; \
-              ./jdk/bin/java -jar bin/transform-log4j-config-7.11.1.jar /config/elastic/log4j2.file.properties > /config/elastic/log4j2.properties; \
-              chmod u-w /config/elastic
+# XXX latest elastic distribution does not seem to include transform-log4j-config anymore - temporarily, log4j2.properties has been updated manually and this is commented out
+#RUN           chmod u+w /config/elastic; \
+#              /boot/jdk/bin/java -jar bin/transform-log4j-config-*.jar /config/elastic/log4j2.file.properties > /config/elastic/log4j2.properties; \
+#              chmod u-w /config/elastic
 
 ### Front server configuration
 # Port to use
 ENV           PORT=4443
 EXPOSE        4443
-# Log verbosity for
+# Log verbosity
 ENV           LOG_LEVEL=info
 # Domain name to serve
-ENV           DOMAIN="kibana.local"
+ENV           DOMAIN="elastic.local"
 # Control wether tls is going to be "internal" (eg: self-signed), or alternatively an email address to enable letsencrypt
 ENV           TLS="internal"
 
-# Salt and realm in case anything is authenticated
-ENV           SALT="eW91IGFyZSBzbyBzbWFydAo="
-ENV           REALM="My precious"
-# Provide username and password here (call the container with the "hash" command to generate a properly encrypted password)
+# Realm in case access is authenticated
+ENV           REALM="My Precious Realm"
+# Provide username and password here (call the container with the "hash" command to generate a properly encrypted password, otherwise, a random one will be generated)
 ENV           USERNAME=""
 ENV           PASSWORD=""
 
@@ -152,10 +151,10 @@ ENV           PASSWORD=""
 # Enable/disable mDNS support
 ENV           MDNS_ENABLED=false
 # Name is used as a short description for the service
-ENV           MDNS_NAME="Fancy Service Name"
+ENV           MDNS_NAME="My Precious mDNS Service"
 # The service will be annonced and reachable at $MDNS_HOST.local
 ENV           MDNS_HOST=elastic
-# Type being advertised
+# Type to advertise
 ENV           MDNS_TYPE=_http._tcp
 
 # Caddy certs will be stored here
@@ -164,21 +163,11 @@ VOLUME        /certs
 # Caddy uses this
 VOLUME        /tmp
 
-
-
-# XXX missing?
-# RUN           jdk/bin/java -jar bin/transform-log4j-config-7.11.1.jar config/elastic/log4j2.file.properties > config/log4j2.properties
-
-# ENV           ELASTIC_CONTAINER=true
-
-# Default volumes for data and tmp, since these are expected to be writable
-# VOLUME        /config
+# Elastic data will be stored here
 VOLUME        /data
-VOLUME        /tmp
 
-#EXPOSE        9200
-#EXPOSE        9300
+# This var also enables the corresponding caddy app
+ENV           HEALTHCHECK_URL="http://127.0.0.1:10000"
 
-ENV           HEALTHCHECK_URL="http://127.0.0.1:9200"
 # TODO make interval configurable
-HEALTHCHECK   --interval=30s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
+HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
