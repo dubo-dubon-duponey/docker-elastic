@@ -17,7 +17,7 @@ set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 }
 
 # Helpers
-case "${1:-}" in
+case "${1:-run}" in
   # Short hand helper to generate password hash
   "hash")
     shift
@@ -42,50 +42,37 @@ case "${1:-}" in
     cat /certs/pki/authorities/local/root.crt
     exit
   ;;
+  "run")
+    # Bonjour the container if asked to. While the PORT is no guaranteed to be mapped on the host in bridge, this does not matter since mDNS will not work at all in bridge mode.
+    if [ "${MDNS_ENABLED:-}" == true ]; then
+      goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
+    fi
+
+    # Given how the caddy conf is set right now, we cannot have these be not set, so, stuff in randomized shit in there in case there is nothing
+    #readonly USERNAME="${USERNAME:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)"}"
+    #readonly PASSWORD="${PASSWORD:-$(caddy hash-password -algorithm bcrypt -plaintext "$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)")}"
+    # If we want TLS and authentication, start caddy in the background
+    if [ "$TLS" ]; then
+      HOME=/tmp/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile &
+    fi
+  ;;
 esac
-
-# Bonjour the container if asked to. While the PORT is no guaranteed to be mapped on the host in bridge, this does not matter since mDNS will not work at all in bridge mode.
-if [ "${MDNS_ENABLED:-}" == true ]; then
-  goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
-fi
-
-# Given how the caddy conf is set right now, we cannot have these be not set, so, stuff in randomized shit in there in case there is nothing
-readonly USERNAME="${USERNAME:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)"}"
-readonly PASSWORD="${PASSWORD:-$(caddy hash-password -algorithm bcrypt -plaintext "$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)")}"
-
-# If we want TLS and authentication, start caddy in the background
-if [ "$TLS" ]; then
-  HOME=/tmp/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile &
-fi
 
 # This is in the official dockerfile, so...
 export ELASTIC_CONTAINER=true
 
-# Parse Docker env vars to customize Elasticsearch
-#
-# e.g. Setting the env var cluster.name=testcluster
-#
-# will cause Elasticsearch to be invoked with -Ecluster.name=testcluster
-#
-# see https://www.elastic.co/guide/en/elasticsearch/reference/current/settings.html#_setting_default_settings
-
 export ES_HOME=/data
-# XXX ARRRRR ELASTIC - mutable config???? WHY?
-export ES_PATH_CONF=/data/xxx-elastic
 export ES_PATH_DATA=/data/data
 export ES_PATH_LOGS=/tmp/logs
-
 mkdir -p "$ES_PATH_DATA"
 mkdir -p "$ES_PATH_LOGS"
 mkdir -p /tmp/java
 
+# XXX ARRRRR ELASTIC - mutable config???? WHY?
+export ES_PATH_CONF=/data/xxx-elastic
 rm -Rf "$ES_PATH_CONF"
 cp -R /config/elastic "$ES_PATH_CONF"
 chmod u+w "$ES_PATH_CONF"
-
-es_opts+=("-Epath.data=/data/data")
-es_opts+=("-Epath.logs=/tmp/logs")
-# es_opts+=("-Escript.max_compilations_rate=2048/1m")
 
 # The virtual file /proc/self/cgroup should list the current cgroup
 # membership. For each hierarchy, you can follow the cgroup path from
@@ -99,7 +86,7 @@ es_opts+=("-Epath.logs=/tmp/logs")
 # es.cgroups.hierarchy.override. Therefore, we set this value here so
 # that cgroup statistics are available for the container this process
 # will run in.
-# -Djava.io.tmpdir=/tmp
 export ES_JAVA_OPTS="-Djava.io.tmpdir=/tmp/java -Des.cgroups.hierarchy.override=/ ${ES_JAVA_OPTS:-}"
 
-elasticsearch "${es_opts[@]}" "$@"
+# es_opts+=("-Escript.max_compilations_rate=2048/1m")
+elasticsearch "-Epath.data=$ES_PATH_DATA" "-Epath.logs=$ES_PATH_LOGS" "$@"

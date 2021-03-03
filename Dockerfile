@@ -113,6 +113,11 @@ RUN           chmod 555 /dist/boot/bin/*; \
               epoch="$(date --date "$BUILD_CREATED" +%s)"; \
               find /dist/boot/bin -newermt "@$epoch" -exec touch --no-dereference --date="@$epoch" '{}' +;
 
+# XXX latest elastic distribution does not seem to include transform-log4j-config anymore - temporarily, log4j2.properties has been updated manually and this is commented out
+#RUN           chmod u+w /config/elastic; \
+#              /boot/jdk/bin/java -jar bin/transform-log4j-config-*.jar /config/elastic/log4j2.file.properties > /config/elastic/log4j2.properties; \
+#              chmod u-w /config/elastic
+
 #######################
 # Running image
 #######################
@@ -125,17 +130,12 @@ COPY          --from=builder --chown=$BUILD_UID:root /dist .
 # Elastic: bring in the config as well
 COPY          --from=builder-main --chown=$BUILD_UID:root /dist/config /config/elastic
 
-# XXX latest elastic distribution does not seem to include transform-log4j-config anymore - temporarily, log4j2.properties has been updated manually and this is commented out
-#RUN           chmod u+w /config/elastic; \
-#              /boot/jdk/bin/java -jar bin/transform-log4j-config-*.jar /config/elastic/log4j2.file.properties > /config/elastic/log4j2.properties; \
-#              chmod u-w /config/elastic
-
 ### Front server configuration
 # Port to use
 ENV           PORT=4443
 EXPOSE        4443
 # Log verbosity
-ENV           LOG_LEVEL=info
+ENV           LOG_LEVEL="warn"
 # Domain name to serve
 ENV           DOMAIN="elastic.local"
 # Control wether tls is going to be "internal" (eg: self-signed), or alternatively an email address to enable letsencrypt
@@ -153,9 +153,9 @@ ENV           MDNS_ENABLED=false
 # Name is used as a short description for the service
 ENV           MDNS_NAME="My Precious mDNS Service"
 # The service will be annonced and reachable at $MDNS_HOST.local
-ENV           MDNS_HOST=elastic
+ENV           MDNS_HOST="elastic"
 # Type to advertise
-ENV           MDNS_TYPE=_http._tcp
+ENV           MDNS_TYPE="_http._tcp"
 
 # Caddy certs will be stored here
 VOLUME        /certs
@@ -167,7 +167,6 @@ VOLUME        /tmp
 VOLUME        /data
 
 # This var also enables the corresponding caddy app
-ENV           HEALTHCHECK_URL="http://127.0.0.1:10000"
+ENV           HEALTHCHECK_URL="http://127.0.0.1:10000/_cluster/health"
 
-# TODO make interval configurable
 HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
