@@ -48,9 +48,6 @@ case "${1:-run}" in
       goello-server -name "$MDNS_NAME" -host "$MDNS_HOST" -port "$PORT" -type "$MDNS_TYPE" &
     fi
 
-    # Given how the caddy conf is set right now, we cannot have these be not set, so, stuff in randomized shit in there in case there is nothing
-    #readonly USERNAME="${USERNAME:-"$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)"}"
-    #readonly PASSWORD="${PASSWORD:-$(caddy hash-password -algorithm bcrypt -plaintext "$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 64)")}"
     # If we want TLS and authentication, start caddy in the background
     if [ "$TLS" ]; then
       HOME=/tmp/caddy-home exec caddy run -config /config/caddy/main.conf --adapter caddyfile &
