@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -o errexit -o errtrace -o functrace -o nounset -o pipefail
 
-[ -w "/certs" ] || {
+[ -w /certs ] || {
   printf >&2 "/certs is not writable. Check your mount permissions.\n"
   exit 1
 }
 
-[ -w "/tmp" ] || {
+[ -w /tmp ] || {
   printf >&2 "/tmp is not writable. Check your mount permissions.\n"
   exit 1
 }
 
-[ -w "/data" ] || {
+[ -w /data ] || {
   printf >&2 "/data is not writable. Check your mount permissions.\n"
   exit 1
 }
@@ -28,15 +28,15 @@ case "${1:-run}" in
   # Helper to get the ca.crt out (once initialized)
   "cert")
     if [ "$TLS" == "" ]; then
-      echo "Your container is not configured for TLS termination - there is no local CA in that case."
+      printf >&2 "Your container is not configured for TLS termination - there is no local CA in that case."
       exit 1
     fi
-    if [ "$TLS" != internal ]; then
-      echo "Your container uses letsencrypt - there is no local CA in that case."
+    if [ "$TLS" != "internal" ]; then
+      printf >&2 "Your container uses letsencrypt - there is no local CA in that case."
       exit 1
     fi
-    if [ ! -e "/certs/pki/authorities/local/root.crt" ]; then
-      echo "No root certificate installed or generated. Run the container so that a cert is generated, or provide one at runtime."
+    if [ ! -e /certs/pki/authorities/local/root.crt ]; then
+      printf >&2 "No root certificate installed or generated. Run the container so that a cert is generated, or provide one at runtime."
       exit 1
     fi
     cat /certs/pki/authorities/local/root.crt

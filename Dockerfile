@@ -1,88 +1,34 @@
-ARG           BUILDER_BASE=dubodubonduponey/base@sha256:b51f084380bc1bd2b665840317b6f19ccc844ee2fc7e700bf8633d95deba2819
-ARG           RUNTIME_BASE=dubodubonduponey/base@sha256:d28e8eed3e87e8dc5afdd56367d3cf2da12a0003d064b5c62405afbe4725ee99
+ARG           FROM_REGISTRY=ghcr.io/dubo-dubon-duponey
 
-#######################
-# Extra builder for healthchecker
-#######################
-# hadolint ignore=DL3006,DL3029
-FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-healthcheck
-
-ARG           GIT_REPO=github.com/dubo-dubon-duponey/healthcheckers
-ARG           GIT_VERSION=51ebf8ca3d255e0c846307bf72740f731e6210c3
-ARG           BUILD_TARGET=./cmd/http
-ARG           BUILD_OUTPUT=http-health
-ARG           BUILD_FLAGS="-s -w"
-
-WORKDIR       $GOPATH/src/$GIT_REPO
-RUN           git clone git://$GIT_REPO .
-RUN           git checkout $GIT_VERSION
-# hadolint ignore=DL4006
-RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
-                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
-
-#######################
-# Goello
-#######################
-# hadolint ignore=DL3006,DL3029
-FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-goello
-
-ARG           GIT_REPO=github.com/dubo-dubon-duponey/goello
-ARG           GIT_VERSION=3799b6035dd5c4d5d1c061259241a9bedda810d6
-ARG           BUILD_TARGET=./cmd/server
-ARG           BUILD_OUTPUT=goello-server
-ARG           BUILD_FLAGS="-s -w"
-
-WORKDIR       $GOPATH/src/$GIT_REPO
-RUN           git clone git://$GIT_REPO .
-RUN           git checkout $GIT_VERSION
-# hadolint ignore=DL4006
-RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
-                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
-
-#######################
-# Caddy
-#######################
-# hadolint ignore=DL3006,DL3029
-FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-caddy
-
-# This is 2.3.0
-ARG           GIT_REPO=github.com/caddyserver/caddy
-ARG           GIT_VERSION=1b453dd4fbea2f3a54362fb4c2115bab85cad1b7
-ARG           BUILD_TARGET=./cmd/caddy
-ARG           BUILD_OUTPUT=caddy
-ARG           BUILD_FLAGS="-s -w"
-
-WORKDIR       $GOPATH/src/$GIT_REPO
-RUN           git clone https://$GIT_REPO .
-RUN           git checkout $GIT_VERSION
-# hadolint ignore=DL4006
-RUN           env GOOS=linux GOARCH="$(printf "%s" "$TARGETPLATFORM" | sed -E 's/^[^/]+\/([^/]+).*/\1/')" go build -v \
-                -ldflags "$BUILD_FLAGS" -o /dist/boot/bin/"$BUILD_OUTPUT" "$BUILD_TARGET"
+ARG           FROM_IMAGE_BUILDER=base:builder-bullseye-2021-07-01@sha256:f1c46316c38cc1ca54fd53b54b73797b35ba65ee727beea1a5ed08d0ad7e8ccf
+ARG           FROM_IMAGE_RUNTIME=base:runtime-bullseye-2021-07-01@sha256:9f5b20d392e1a1082799b3befddca68cee2636c72c502aa7652d160896f85b36
 
 #######################
 # Main builder
 #######################
-# hadolint ignore=DL3006,DL3029
-FROM          --platform=$BUILDPLATFORM $BUILDER_BASE                                                                   AS builder-main
+FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER                                              AS builder-main
+
+ARG           TARGETARCH
+ARG           TARGETOS
+ARG           TARGETVARIANT
 
 # Note that this is tied to x86_64 and not a proper multi-arch image
-ENV           VERSION=7.11.1
-ENV           AMD64_SHA512=49db18ecb8c67dd904106165f599d5757f5ce3cdbe5835e8d4babf85f5274368b45fb6bbaf23350107305904ea1823d929444858cf3df686df3c52e8506ce569
-ENV           AARCH64_SHA512=72aa6346ab303484dd620d23dca8f60acedf775d778ed2ef5326672fc2ece8b55124bef02e0749813aa9fc34bdac4af6c7e9a54a6ace50a41ac30fae5fdc38e1
-
-RUN           apt-get update -qq \
-              && apt-get install -qq --no-install-recommends \
-                curl=7.64.0-4+deb10u1
+ENV           VERSION=7.13.4
+ENV           AMD64_SHA512=510c0ce8af12ccc143b18e73d84047052376cd203f3a913af03baaeb26ffaedfffddd5c4477e5bce84aaf0aaaa436fef4c8012165fc9aa9895518f21cb84c28b
+ENV           AARCH64_SHA512=d170517a3ddb47a6113dfe3f2657660782252e98ce799d5b6b6095724edab2fec597c49915fa1f9b8f0888c21fac342441e8d25df10519605523b23b48150985
 
 WORKDIR       /dist/boot
 
-# hadolint ignore=DL4006
-RUN           set -eu; \
+RUN           --mount=type=secret,id=CA \
+              --mount=type=secret,id=CERTIFICATE \
+              --mount=type=secret,id=KEY \
+              --mount=type=secret,id=NETRC \
+              --mount=type=secret,id=.curlrc \
               case "$TARGETPLATFORM" in \
                 "linux/amd64")    arch=x86_64;      checksum=$AMD64_SHA512;      ;; \
                 "linux/arm64")    arch=aarch64;     checksum=$AARCH64_SHA512;     ;; \
               esac; \
-              curl --proto '=https' --tlsv1.2 -sSfL -o archive.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${VERSION}-linux-${arch}.tar.gz"; \
+              curl -sSfL -o archive.tgz "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-${VERSION}-linux-${arch}.tar.gz"; \
               printf "Downloaded shasum: %s\n" "$(sha512sum archive.tgz)"; \
               printf "%s *archive.tgz" "$checksum" | sha512sum -c -; \
               tar --strip-components=1 -zxf archive.tgz; \
@@ -99,19 +45,19 @@ RUN           sed -i'' -e 's|-XX:ErrorFile=logs/hs_err_pid%p.log|-XX:ErrorFile=/
 RUN           sed -i'' -e 's|9-:-Xlog:gc\*,gc+age=trace,safepoint:file=logs/gc.log:utctime,pid,tags:filecount=32,filesize=64m|9-:-Xlog:gc*,gc+age=trace,safepoint:file=/tmp/gc.log:utctime,pid,tags:filecount=32,filesize=64m|' ../config/jvm.options
 
 #######################
-# Builder assembly
+# Builder assembly, XXX should be auditor
 #######################
-# hadolint ignore=DL3006
-FROM          $BUILDER_BASE                                                                                             AS builder
+FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER                                              AS builder
 
-COPY          --from=builder-healthcheck /dist/boot/bin /dist/boot/bin
-COPY          --from=builder-goello /dist/boot/bin /dist/boot/bin
-COPY          --from=builder-caddy /dist/boot/bin /dist/boot/bin
-COPY          --from=builder-main /dist/boot /dist/boot
+COPY          --from=builder-main   /dist/boot           /dist/boot
+
+COPY          --from=builder-tools  /boot/bin/goello-server  /dist/boot/bin
+COPY          --from=builder-tools  /boot/bin/caddy          /dist/boot/bin
+COPY          --from=builder-tools  /boot/bin/http-health    /dist/boot/bin
 
 RUN           chmod 555 /dist/boot/bin/*; \
               epoch="$(date --date "$BUILD_CREATED" +%s)"; \
-              find /dist/boot/bin -newermt "@$epoch" -exec touch --no-dereference --date="@$epoch" '{}' +;
+              find /dist/boot -newermt "@$epoch" -exec touch --no-dereference --date="@$epoch" '{}' +;
 
 # XXX latest elastic distribution does not seem to include transform-log4j-config anymore - temporarily, log4j2.properties has been updated manually and this is commented out
 #RUN           chmod u+w /config/elastic; \
@@ -121,25 +67,27 @@ RUN           chmod 555 /dist/boot/bin/*; \
 #######################
 # Running image
 #######################
-# hadolint ignore=DL3006
-FROM          $RUNTIME_BASE
-
-# Bring in stuff from main
-COPY          --from=builder --chown=$BUILD_UID:root /dist .
+FROM          $FROM_REGISTRY/$FROM_IMAGE_RUNTIME
 
 # Elastic: bring in the config as well
 COPY          --from=builder-main --chown=$BUILD_UID:root /dist/config /config/elastic
+
+ENV           NICK="elastic"
+
+COPY          --from=builder --chown=$BUILD_UID:root /dist /
 
 ### Front server configuration
 # Port to use
 ENV           PORT=4443
 EXPOSE        4443
-# Log verbosity
+# Log verbosity for
 ENV           LOG_LEVEL="warn"
 # Domain name to serve
-ENV           DOMAIN="elastic.local"
+ENV           DOMAIN="$NICK.local"
 # Control wether tls is going to be "internal" (eg: self-signed), or alternatively an email address to enable letsencrypt
 ENV           TLS="internal"
+# Either require_and_verify or verify_if_given
+ENV           MTLS_MODE="verify_if_given"
 
 # Realm in case access is authenticated
 ENV           REALM="My Precious Realm"
@@ -151,9 +99,9 @@ ENV           PASSWORD=""
 # Enable/disable mDNS support
 ENV           MDNS_ENABLED=false
 # Name is used as a short description for the service
-ENV           MDNS_NAME="My Precious mDNS Service"
+ENV           MDNS_NAME="mDNS display name"
 # The service will be annonced and reachable at $MDNS_HOST.local
-ENV           MDNS_HOST="elastic"
+ENV           MDNS_HOST="$NICK"
 # Type to advertise
 ENV           MDNS_TYPE="_http._tcp"
 
@@ -163,10 +111,9 @@ VOLUME        /certs
 # Caddy uses this
 VOLUME        /tmp
 
-# Elastic data will be stored here
+# Used by the backend service
 VOLUME        /data
 
-# This var also enables the corresponding caddy app
-ENV           HEALTHCHECK_URL="http://127.0.0.1:10000/_cluster/health"
+ENV           HEALTHCHECK_URL="http://127.0.0.1:10000/?healthcheck"
 
 HEALTHCHECK   --interval=120s --timeout=30s --start-period=10s --retries=1 CMD http-health || exit 1
