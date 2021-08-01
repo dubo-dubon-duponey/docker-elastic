@@ -38,7 +38,7 @@ docker rm -f "$ES_DOMAIN" 2>/dev/null || true
 
 docker run -d --cap-drop ALL --read-only \
   -v "$(pwd)"/certificates:/certs \
-  --user $(id -u) \
+  --user "$(id -u)" \
   --net dubo-bridge \
   --name "$ES_DOMAIN" \
   --publish "$ES_PORT:$ES_PORT" \
@@ -55,8 +55,8 @@ docker rm -f "$KBN_DOMAIN" 2>/dev/null || true
 
 # --cap-drop ALL --read-only \
 docker run -d --cap-drop ALL --read-only  \
-  -v $(pwd)/certificates:/certs \
-  --user $(id -u) \
+  -v "$(pwd)"/certificates:/certs \
+  --user "$(id -u)" \
   --net dubo-bridge \
   --name "$KBN_DOMAIN" \
   --publish "$KBN_PORT:$KBN_PORT" \
