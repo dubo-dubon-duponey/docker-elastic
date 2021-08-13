@@ -1,9 +1,10 @@
 ARG           FROM_REGISTRY=ghcr.io/dubo-dubon-duponey
 
-ARG           FROM_IMAGE_BUILDER=base:builder-bullseye-2021-07-01@sha256:f1c46316c38cc1ca54fd53b54b73797b35ba65ee727beea1a5ed08d0ad7e8ccf
-ARG           FROM_IMAGE_RUNTIME=base:runtime-bullseye-2021-07-01@sha256:9f5b20d392e1a1082799b3befddca68cee2636c72c502aa7652d160896f85b36
+ARG           FROM_IMAGE_BUILDER=base:builder-bullseye-2021-08-01@sha256:a49ab8a07a2da61eee63b7d9d33b091df190317aefb91203ad0ac41af18d5236
+ARG           FROM_IMAGE_AUDITOR=base:auditor-bullseye-2021-08-01@sha256:607d8b42af53ebbeb0064a5fd41895ab34ec670a810a704dbf53a2beb3ab769d
+ARG           FROM_IMAGE_RUNTIME=base:runtime-bullseye-2021-08-01@sha256:3fdb7b859e3fea12a7604ff4ae7e577628784ac1f6ea0d5609de65a4b26e5b3c
 
-ARG           FROM_IMAGE_TOOLS=tools:linux-bullseye-2021-07-01@sha256:f1e25694fe933c7970773cb323975bb5c995fa91d0c1a148f4f1c131cbc5872c
+ARG           FROM_IMAGE_TOOLS=tools:linux-bullseye-2021-08-01@sha256:9e54b76442e4d8e1cad76acc3c982a5623b59f395b594af15bef6b489862ceac
 
 FROM          $FROM_REGISTRY/$FROM_IMAGE_TOOLS                                                                          AS builder-tools
 #######################
@@ -14,6 +15,7 @@ FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER      
 ARG           TARGETARCH
 ARG           TARGETOS
 ARG           TARGETVARIANT
+ARG           TARGETPLATFORM
 
 # Note that this is tied to x86_64 and not a proper multi-arch image
 ENV           VERSION=7.13.4
@@ -50,13 +52,15 @@ RUN           sed -i'' -e 's|9-:-Xlog:gc\*,gc+age=trace,safepoint:file=logs/gc.l
 #######################
 # Builder assembly, XXX should be auditor
 #######################
-FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_BUILDER                                              AS builder
+FROM          --platform=$BUILDPLATFORM $FROM_REGISTRY/$FROM_IMAGE_AUDITOR                                              AS builder
 
 COPY          --from=builder-main   /dist/boot           /dist/boot
 
 COPY          --from=builder-tools  /boot/bin/goello-server  /dist/boot/bin
 COPY          --from=builder-tools  /boot/bin/caddy          /dist/boot/bin
 COPY          --from=builder-tools  /boot/bin/http-health    /dist/boot/bin
+
+RUN           setcap 'cap_net_bind_service+ep' /dist/boot/bin/caddy
 
 RUN           chmod 555 /dist/boot/bin/*; \
               epoch="$(date --date "$BUILD_CREATED" +%s)"; \
@@ -82,27 +86,41 @@ COPY          --from=builder --chown=$BUILD_UID:root /dist /
 ### Front server configuration
 # Port to use
 ENV           PORT=4443
+ENV           PORT_HTTP=80
 EXPOSE        4443
+EXPOSE        80
 # Log verbosity for
 ENV           LOG_LEVEL="warn"
 # Domain name to serve
 ENV           DOMAIN="$NICK.local"
+ENV           ADDITIONAL_DOMAINS=""
+
+# Whether the server should behave as a proxy (disallows mTLS)
+ENV           SERVER_NAME="DuboDubonDuponey/1.0 (Caddy/2) [$NICK]"
+
 # Control wether tls is going to be "internal" (eg: self-signed), or alternatively an email address to enable letsencrypt
 ENV           TLS="internal"
+# 1.2 or 1.3
+ENV           TLS_MIN=1.2
 # Either require_and_verify or verify_if_given
-ENV           MTLS_MODE="verify_if_given"
+ENV           TLS_MTLS_MODE="verify_if_given"
+# Issuer name to appear in certificates
+#ENV           TLS_ISSUER="Dubo Dubon Duponey"
+# Either disable_redirects or ignore_loaded_certs if one wants the redirects
+ENV           TLS_AUTO=disable_redirects
 
+ENV           AUTH_ENABLED=false
 # Realm in case access is authenticated
-ENV           REALM="My Precious Realm"
+ENV           AUTH_REALM="My Precious Realm"
 # Provide username and password here (call the container with the "hash" command to generate a properly encrypted password, otherwise, a random one will be generated)
-ENV           USERNAME=""
-ENV           PASSWORD=""
+ENV           AUTH_USERNAME="dubo-dubon-duponey"
+ENV           AUTH_PASSWORD="cmVwbGFjZV9tZV93aXRoX3NvbWV0aGluZwo="
 
 ### mDNS broadcasting
 # Enable/disable mDNS support
 ENV           MDNS_ENABLED=false
 # Name is used as a short description for the service
-ENV           MDNS_NAME="mDNS display name"
+ENV           MDNS_NAME="$NICK mDNS display name"
 # The service will be annonced and reachable at $MDNS_HOST.local
 ENV           MDNS_HOST="$NICK"
 # Type to advertise
