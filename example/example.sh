@@ -23,9 +23,9 @@ PASSWORD=secret_password
 ######################################
 
 # Generate the salted password hash
-SALTED_PASSWORD="$(docker run --rm dubodubonduponey/elastic hash -plaintext "$PASSWORD" 2>/dev/null)"
+SALTED_PASSWORD="$(docker run --rm ghcr.io/dubo-dubon-duponey/elastic hash -plaintext "$PASSWORD" 2>/dev/null)"
 # If you prefer *not* to pass the plaintext password, you can provide it interactively and manually copy the output into SALTED_PASSWORD
-# docker run -ti dubodubonduponey/elastic hash-interactive
+# docker run -ti ghcr.io/dubo-dubon-duponey/elastic hash-interactive
 
 mkdir -p certificates
 
@@ -46,7 +46,7 @@ docker run -d --cap-drop ALL --read-only \
   --env PORT="$ES_PORT" \
   --env USERNAME="$USERNAME" \
   --env PASSWORD="$SALTED_PASSWORD" \
-  dubodubonduponey/elastic
+  ghcr.io/dubo-dubon-duponey/elastic
 
 ######################################
 # Kibana
@@ -68,7 +68,7 @@ docker run -d --cap-drop ALL --read-only  \
   --env ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES=/certs/pki/authorities/local/root.crt \
   --env ELASTICSEARCH_USERNAME="$USERNAME" \
   --env ELASTICSEARCH_PASSWORD="$PASSWORD" \
-  dubodubonduponey/kibana
+  ghcr.io/dubo-dubon-duponey/kibana
 
 
 ######################################

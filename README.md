@@ -16,7 +16,7 @@ This is based on [Elastic](https://github.com/elastic/elasticsearch).
   * [x] linux/s390x
 * hardened:
   * [x] image runs read-only
-  * [x] image runs with no capabilities (unless you want it on a privileged port)
+  * [x] image runs with no capabilities but NET_BIND_SERVICE
   * [x] process runs as a non-root user, disabled login, no shell
 * lightweight
   * [x] based on our slim [Debian Bullseye](https://github.com/dubo-dubon-duponey/docker-debian)
@@ -37,7 +37,7 @@ See [example script](example/example.sh) for a complete stack including Kibana.
 
 For Elastic specifically:
 
-```
+```bash
 # Domain name for your Elastic server (will be used to generate self-signed certificates, and also as a container name)
 ES_DOMAIN=myelastic.local
 # Port to expose for Elastic
@@ -48,9 +48,9 @@ USERNAME=my_elastic_username
 PASSWORD=secret_password
 
 # Generate the salted password hash
-SALTED_PASSWORD="$(docker run --rm dubodubonduponey/elastic hash -plaintext "$PASSWORD" 2>/dev/null)"
+SALTED_PASSWORD="$(docker run --rm ghcr.io/dubo-dubon-duponey/elastic hash -plaintext "$PASSWORD" 2>/dev/null)"
 # If you prefer *not* to pass the plaintext password, you can provide it interactively and manually copy the output into SALTED_PASSWORD
-# docker run -ti dubodubonduponey/elastic hash-interactive
+# docker run -ti ghcr.io/dubo-dubon-duponey/elastic hash-interactive
 
 ######################################
 # Elastic
@@ -74,7 +74,7 @@ docker run -d --cap-drop ALL --read-only \
   --env PORT="$ES_PORT" \
   --env USERNAME="$USERNAME" \
   --env PASSWORD="$SALTED_PASSWORD" \
-  dubodubonduponey/elastic
+  ghcr.io/dubo-dubon-duponey/elastic
 ```
 
 ## Notes
