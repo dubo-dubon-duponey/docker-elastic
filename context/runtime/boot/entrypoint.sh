@@ -63,7 +63,7 @@ export ES_PATH_DATA=/data/data
 export ES_PATH_LOGS=/tmp/logs
 mkdir -p "$ES_PATH_DATA"
 mkdir -p "$ES_PATH_LOGS"
-mkdir -p /tmp/java
+mkdir -p /data/tmp-java
 
 # XXX ARRRRR ELASTIC - mutable config???? WHY?
 export ES_PATH_CONF=/data/xxx-elastic
@@ -83,7 +83,7 @@ chmod u+w "$ES_PATH_CONF"
 # es.cgroups.hierarchy.override. Therefore, we set this value here so
 # that cgroup statistics are available for the container this process
 # will run in.
-export ES_JAVA_OPTS="-Djava.io.tmpdir=/tmp/java -Des.cgroups.hierarchy.override=/ ${ES_JAVA_OPTS:-}"
+export ES_JAVA_OPTS="-Djava.io.tmpdir=/data/tmp-java -Des.cgroups.hierarchy.override=/ ${ES_JAVA_OPTS:-}"
 
 # es_opts+=("-Escript.max_compilations_rate=2048/1m")
 elasticsearch "-Epath.data=$ES_PATH_DATA" "-Epath.logs=$ES_PATH_LOGS" "$@"
