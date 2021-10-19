@@ -62,6 +62,13 @@ COPY          --from=builder-tools  /boot/bin/http-health    /dist/boot/bin
 
 RUN           setcap 'cap_net_bind_service+ep' /dist/boot/bin/caddy
 
+RUN           RUNNING=true \
+              STATIC=true \
+                dubo-check validate /dist/boot/bin/*
+
+RUN           RO_RELOCATIONS=true \
+                dubo-check validate /dist/boot/bin/caddy
+
 RUN           chmod 555 /dist/boot/bin/*; \
               epoch="$(date --date "$BUILD_CREATED" +%s)"; \
               find /dist/boot -newermt "@$epoch" -exec touch --no-dereference --date="@$epoch" '{}' +;
