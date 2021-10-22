@@ -9,6 +9,22 @@ http.port: 10042
 # XXX this is still messy / noisy
 discovery.type: "single-node"
 
-xpack:
-  security:
-    enabled: true
+# Giving up on elastic "security" for now
+#xpack:
+  #security:
+    #enabled: true
+
+
+    #transport:
+      #ssl:
+        #enabled: true
+        #supported_protocols: "TLSv1.2"
+
+
+#authc:
+  #password_hashing:
+    #algorithm: "pbkdf2"
+
+
+    #fips_mode:
+      #enabled: true
