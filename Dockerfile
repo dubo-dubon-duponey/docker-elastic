@@ -39,6 +39,11 @@ RUN           --mount=type=secret,id=CA \
               tar --strip-components=1 -zxf archive.tgz; \
               rm archive.tgz; \
               mv config ../; \
+              rmdir plugins; \
+              rmdir logs; \
+              rm LICENSE.txt; \
+              rm NOTICE.txt; \
+              rm README.asciidoc; \
               rm ../config/elasticsearch.yml; \
               rm ../config/log4j2.properties
 

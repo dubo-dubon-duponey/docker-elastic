@@ -8,3 +8,7 @@ http.port: 10042
 # Disable cluster search
 # XXX this is still messy / noisy
 discovery.type: "single-node"
+
+xpack:
+  security:
+    enabled: true
