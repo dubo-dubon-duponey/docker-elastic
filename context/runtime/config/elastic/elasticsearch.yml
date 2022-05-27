@@ -11,10 +11,13 @@ discovery.type: "single-node"
 
 # Giving up on elastic "security" for now
 #xpack:
-  #security:
-    #enabled: true
+#  security:
+#    enabled: true
 
+# Prevent swapping - also check docker --memory-swap
+# bootstrap.memory_lock: true
 
+#xpack:
     #transport:
       #ssl:
         #enabled: true
@@ -28,3 +31,4 @@ discovery.type: "single-node"
 
     #fips_mode:
       #enabled: true
+
